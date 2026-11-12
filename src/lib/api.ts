@@ -1,6 +1,6 @@
 import type { ApiResult } from '../types'
 
-const API_URL = "https://script.google.com/macros/s/AKfycbw02vO_Z3XehG2qpQPdpnyMuDdLJ663HnfmURNvT6-aHJKGbuiRKrLozfQng8nWYv9X/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycbyT-Ar3yQ-hwgGcCfvumsH4nNCrdoNhi03vpNOJQ4683FcP5tL2COloGufuA2uJjMJP/exec"
 // const API_URL = (import.meta as ImportMeta & {
 //   env?: {
 //     VITE_API_URL?: string
