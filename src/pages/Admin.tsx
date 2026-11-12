@@ -76,6 +76,7 @@ const permissions = [
   'Point of Sale',
   'Keuangan',
   'Tambah transaksi',
+  'Utang & Piutang',
   'Lihat laporan',
 ]
 
