@@ -1,10 +1,11 @@
 import type { ApiResult } from '../types'
 
-const API_URL = (import.meta as ImportMeta & {
-  env?: {
-    VITE_API_URL?: string
-  }
-}).env?.VITE_API_URL as string | undefined
+const API_URL = "https://script.google.com/macros/s/AKfycbw02vO_Z3XehG2qpQPdpnyMuDdLJ663HnfmURNvT6-aHJKGbuiRKrLozfQng8nWYv9X/exec"
+// const API_URL = (import.meta as ImportMeta & {
+//   env?: {
+//     VITE_API_URL?: string
+//   }
+// }).env?.VITE_API_URL as string | undefined
 
 export async function api<T=unknown>(action:string,payload:Record<string,unknown>={}):Promise<ApiResult<T>>{
  if(!API_URL||API_URL.includes('PASTE_DEPLOYMENT_ID'))throw new Error('URL Google Apps Script belum diatur pada VITE_API_URL.');
