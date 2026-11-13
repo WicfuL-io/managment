@@ -143,64 +143,54 @@ export default function App() {
   }
 
   // Mengaktifkan notifikasi melalui tombol lonceng.
-  async function enableNotifications() {
-    if (!session) return
+  
+async function enableNotifications() {
+  console.log('[APP] Tombol notifikasi diklik')
 
-    try {
-      // Pastikan perangkat terhubung ke akun yang sedang login.
-      await oneSignalLogin(session.user.id)
-
-      const result = await oneSignalRequestPermission()
-
-      console.log('STATUS NOTIFIKASI:', result)
-
-      if (!result.supported) {
-        alert(
-          'Browser atau perangkat ini tidak mendukung Web Push Notification.'
-        )
-        return
-      }
-
-      if (result.granted) {
-        alert('Notifikasi berhasil diaktifkan!')
-        return
-      }
-
-      if (result.browserPermission === 'denied') {
-        alert(
-          'Izin notifikasi diblokir oleh browser. Buka pengaturan situs dan ubah Notifikasi menjadi Izinkan.'
-        )
-        return
-      }
-
-      if (result.browserPermission === 'default') {
-        alert(
-          'Browser belum memberikan izin notifikasi. Silakan izinkan permintaan notifikasi.'
-        )
-        return
-      }
-
-      if (
-        result.browserPermission === 'granted' &&
-        !result.oneSignalPermission
-      ) {
-        alert(
-          'Izin Chrome sudah aktif, tetapi OneSignal belum mengonfirmasi izin. Periksa konfigurasi OneSignal dan Service Worker.'
-        )
-        return
-      }
-
-      alert(
-        'Status notifikasi belum aktif. Periksa Console browser untuk informasi lebih lanjut.'
-      )
-    } catch (error) {
-      console.error('Notification error:', error)
-
-      alert(
-        'Gagal mengaktifkan notifikasi. Pastikan website menggunakan HTTPS dan konfigurasi OneSignal sudah benar.'
-      )
-    }
+  if (!session) {
+    console.error('[APP] Tidak ada pengguna yang login')
+    return
   }
+
+  try {
+    // 1. Minta izin terlebih dahulu saat konteks klik masih aktif.
+    const result = await oneSignalRequestPermission()
+
+    console.log('[APP] Status izin:', result)
+
+    if (result.browserPermission === 'denied') {
+      alert('Izin notifikasi diblokir oleh Chrome.')
+      return
+    }
+
+    if (result.browserPermission !== 'granted') {
+      alert('Izin notifikasi belum diberikan.')
+      return
+    }
+
+    if (!result.oneSignalPermission) {
+      alert(
+        'Izin browser sudah aktif, tetapi izin OneSignal belum aktif.'
+      )
+      return
+    }
+
+    // 2. Setelah izin berhasil, hubungkan akun.
+    await oneSignalLogin(session.user.id)
+
+    alert('Izin notifikasi berhasil diaktifkan dan akun terhubung!')
+
+  } catch (error) {
+    console.error('[APP] Notification error:', error)
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : 'Terjadi kesalahan saat mengaktifkan notifikasi.'
+    )
+  }
+}
+
 
   // Logout.
   async function logout() {
@@ -269,7 +259,7 @@ export default function App() {
     settings: <Admin token={token} page="settings" />
   }
 
-  
+
   return (
     <Shell
       user={session.user}

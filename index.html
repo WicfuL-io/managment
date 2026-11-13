@@ -1,34 +1,38 @@
-
 <!doctype html>
 <html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#07111f" />
-    <meta name="description" content="APK Management - Inventory and Finance Dashboard" />
 
-    <title>APK Management</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07111f" />
+  <meta name="description" content="APK Management - Inventory and Finance Dashboard" />
 
-    <!-- OneSignal Web Push SDK -->
-    <script
-      src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-      defer
-    ></script>
+  <title>APK Management</title>
 
-    <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
+  <!-- OneSignal Web Push SDK -->
 
-      window.OneSignalDeferred.push(async function (OneSignal) {
-        await OneSignal.init({
-          appId: "b34f93f7-d830-4c4a-9d3f-ad6805b6a29e",
-        });
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+    window.OneSignalDeferred.push(async function (OneSignal) {
+      console.log('[OneSignal] Memulai inisialisasi');
+
+      await OneSignal.init({
+        appId: "b34f93f7-d830-4c4a-9d3f-ad6805b6a29e",
       });
-    </script>
-  </head>
 
-  <body>
-    <div id="root"></div>
+      console.log('[OneSignal] Inisialisasi berhasil');
+    });
+  </script>
 
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

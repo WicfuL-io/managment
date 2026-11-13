@@ -26,54 +26,54 @@ const nav: {
   admin?: boolean
   permission?: string
 }[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard
-  },
-  {
-    id: 'stock',
-    label: 'Stock Barang',
-    icon: Boxes,
-    permission: 'Stock Barang'
-  },
-  {
-    id: 'pos',
-    label: 'Point of Sale',
-    icon: ShoppingCart,
-    permission: 'Point of Sale'
-  },
-  {
-    id: 'finance',
-    label: 'Keuangan',
-    icon: Wallet,
-    permission: 'Keuangan'
-  },
-  {
-    id: 'debt',
-    label: 'Utang & Piutang',
-    icon: HandCoins,
-    permission: 'Utang & Piutang'
-  },
-  {
-    id: 'users',
-    label: 'Manajemen User',
-    icon: Users,
-    admin: true
-  },
-  {
-    id: 'logs',
-    label: 'Log Aktivitas',
-    icon: ClipboardList,
-    admin: true
-  },
-  {
-    id: 'settings',
-    label: 'Pengaturan',
-    icon: Settings,
-    admin: true
-  }
-]
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard
+    },
+    {
+      id: 'stock',
+      label: 'Stock Barang',
+      icon: Boxes,
+      permission: 'Stock Barang'
+    },
+    {
+      id: 'pos',
+      label: 'Point of Sale',
+      icon: ShoppingCart,
+      permission: 'Point of Sale'
+    },
+    {
+      id: 'finance',
+      label: 'Keuangan',
+      icon: Wallet,
+      permission: 'Keuangan'
+    },
+    {
+      id: 'debt',
+      label: 'Utang & Piutang',
+      icon: HandCoins,
+      permission: 'Utang & Piutang'
+    },
+    {
+      id: 'users',
+      label: 'Manajemen User',
+      icon: Users,
+      admin: true
+    },
+    {
+      id: 'logs',
+      label: 'Log Aktivitas',
+      icon: ClipboardList,
+      admin: true
+    },
+    {
+      id: 'settings',
+      label: 'Pengaturan',
+      icon: Settings,
+      admin: true
+    }
+  ]
 
 type Props = {
   user: User
@@ -144,9 +144,8 @@ export default function Shell({
             return (
               <button
                 key={item.id}
-                className={`nav-item ${
-                  page === item.id ? 'active' : ''
-                }`}
+                className={`nav-item ${page === item.id ? 'active' : ''
+                  }`}
                 onClick={() => {
                   setPage(item.id)
                   setOpen(false)
@@ -197,14 +196,19 @@ export default function Shell({
 
           <div className="top-actions">
             {/* Tombol aktivasi Push Notification */}
+
             <button
               className="top-icon"
               title="Aktifkan notifikasi"
               aria-label="Aktifkan notifikasi"
-              onClick={onEnableNotifications}
+              onClick={() => {
+                console.log('[SHELL] Tombol lonceng diklik')
+                onEnableNotifications()
+              }}
             >
               <Bell size={18} />
             </button>
+
 
             <div className="top-divider" />
 
