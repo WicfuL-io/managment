@@ -1,6 +1,6 @@
+
 <!doctype html>
 <html lang="id">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,23 +10,31 @@
   <title>APK Management</title>
 
   <!-- OneSignal Web Push SDK -->
-
-  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script
+    src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+    defer
+    onerror="console.error('[OneSignal] GAGAL MEMUAT SDK dari CDN')"
+  ></script>
 
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
 
     window.OneSignalDeferred.push(async function (OneSignal) {
-      console.log('[OneSignal] Memulai inisialisasi');
+      console.log('[OneSignal] SDK berhasil dimuat');
 
-      await OneSignal.init({
-        appId: "b34f93f7-d830-4c4a-9d3f-ad6805b6a29e",
-      });
+      try {
+        console.log('[OneSignal] Memulai inisialisasi...');
 
-      console.log('[OneSignal] Inisialisasi berhasil');
+        await OneSignal.init({
+          appId: 'b34f93f7-d830-4c4a-9d3f-ad6805b6a29e',
+        });
+
+        console.log('[OneSignal] INISIALISASI BERHASIL');
+      } catch (error) {
+        console.error('[OneSignal] ERROR INISIALISASI:', error);
+      }
     });
   </script>
-
 </head>
 
 <body>
@@ -34,5 +42,4 @@
 
   <script type="module" src="/src/main.tsx"></script>
 </body>
-
 </html>
