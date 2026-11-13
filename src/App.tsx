@@ -13,6 +13,12 @@ import POS from './pages/POS'
 import Debt from './pages/Debt'
 
 import { api, getClientInfo } from './lib/api'
+import {
+  oneSignalLogin,
+  oneSignalLogout,
+  oneSignalRequestPermission
+} from './lib/onesignal'
+
 import type { Page, User } from './types'
 
 const STORAGE_KEY = 'apk_management_session'
@@ -27,6 +33,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const [boot, setBoot] = useState(true)
 
+  // Memulihkan sesi login.
   useEffect(() => {
     let alive = true
 
@@ -48,10 +55,18 @@ export default function App() {
             }
 
             setSession(next)
+
             sessionStorage.setItem(
               STORAGE_KEY,
               JSON.stringify(next)
             )
+
+            // Pulihkan identitas OneSignal untuk akun tersebut.
+            try {
+              await oneSignalLogin(next.user.id)
+            } catch (error) {
+              console.error('OneSignal login error:', error)
+            }
           }
         } catch {
           sessionStorage.removeItem(STORAGE_KEY)
@@ -66,6 +81,7 @@ export default function App() {
     }
   }, [])
 
+  // Login.
   async function login(
     _unused: User,
     email: string,
@@ -90,9 +106,17 @@ export default function App() {
 
     setPage('dashboard')
 
+    // Hubungkan perangkat dengan akun yang berhasil login.
+    try {
+      await oneSignalLogin(next.user.id)
+    } catch (error) {
+      console.error('OneSignal login error:', error)
+    }
+
     return next.user
   }
 
+  // Register.
   async function register(
     name: string,
     email: string,
@@ -106,7 +130,41 @@ export default function App() {
     })
   }
 
+  // Mengaktifkan notifikasi melalui tombol lonceng.
+  async function enableNotifications() {
+    if (!session) return
+
+    try {
+      // Pastikan perangkat sudah terhubung ke akun yang benar.
+      await oneSignalLogin(session.user.id)
+
+      const granted = await oneSignalRequestPermission()
+
+      if (granted) {
+        alert('Notifikasi berhasil diaktifkan!')
+      } else {
+        alert(
+          'Izin notifikasi belum diberikan. Silakan periksa pengaturan notifikasi browser.'
+        )
+      }
+    } catch (error) {
+      console.error('Notification error:', error)
+
+      alert(
+        'Gagal mengaktifkan notifikasi. Pastikan website menggunakan HTTPS dan konfigurasi OneSignal sudah benar.'
+      )
+    }
+  }
+
+  // Logout.
   async function logout() {
+    // Lepaskan identitas OneSignal sebelum mengakhiri sesi.
+    try {
+      await oneSignalLogout()
+    } catch (error) {
+      console.error('OneSignal logout error:', error)
+    }
+
     try {
       await api('logout', {
         token: session?.token
@@ -154,10 +212,7 @@ export default function App() {
     stock: <Stock token={token} />,
     pos: <POS token={token} />,
     finance: <Finance token={token} />,
-
-    // Halaman Utang & Piutang
     debt: <Debt token={token} />,
-
     users: <Admin token={token} page="users" />,
     logs: <Admin token={token} page="logs" />,
     settings: <Admin token={token} page="settings" />
@@ -169,6 +224,7 @@ export default function App() {
       page={page}
       setPage={setPage}
       onLogout={logout}
+      onEnableNotifications={enableNotifications}
     >
       {pages[page]}
     </Shell>

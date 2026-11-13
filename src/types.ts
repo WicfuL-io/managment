@@ -122,3 +122,12 @@ export type FinanceRecord = {
   amount: number
   method: string
 }
+
+type Props = {
+  user: User
+  page: Page
+  setPage: (p: Page) => void
+  onLogout: () => void
+  onEnableNotifications: () => void
+  children: React.ReactNode
+}

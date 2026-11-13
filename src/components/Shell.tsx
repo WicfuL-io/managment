@@ -80,6 +80,7 @@ type Props = {
   page: Page
   setPage: (p: Page) => void
   onLogout: () => void
+  onEnableNotifications: () => void
   children: React.ReactNode
 }
 
@@ -88,6 +89,7 @@ export default function Shell({
   page,
   setPage,
   onLogout,
+  onEnableNotifications,
   children
 }: Props) {
   const [open, setOpen] = useState(false)
@@ -194,10 +196,12 @@ export default function Shell({
           </div>
 
           <div className="top-actions">
+            {/* Tombol aktivasi Push Notification */}
             <button
               className="top-icon"
-              title="Notifikasi"
-              aria-label="Notifikasi"
+              title="Aktifkan notifikasi"
+              aria-label="Aktifkan notifikasi"
+              onClick={onEnableNotifications}
             >
               <Bell size={18} />
             </button>
