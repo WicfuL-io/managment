@@ -269,6 +269,7 @@ export default function App() {
     settings: <Admin token={token} page="settings" />
   }
 
+  
   return (
     <Shell
       user={session.user}
