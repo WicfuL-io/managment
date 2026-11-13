@@ -14,19 +14,31 @@ import Debt from './pages/Debt'
 
 import { api, getClientInfo } from './lib/api'
 
-import {
-  oneSignalLogin,
-  oneSignalLogout,
-  oneSignalRequestPermission
-} from './lib/onesignal'
-
 import type { Page, User } from './types'
 
 const STORAGE_KEY = 'apk_management_session'
+const SESSION_TIMEOUT = 8000
 
 type StoredSession = {
   user: User
   token: string
+}
+
+// Membatasi waktu tunggu API.
+function withTimeout<T>(
+  promise: Promise<T>,
+  milliseconds: number
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error('Server terlalu lama merespons.'))
+    }, milliseconds)
+
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => window.clearTimeout(timeout))
+  })
 }
 
 export default function App() {
@@ -34,62 +46,81 @@ export default function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const [boot, setBoot] = useState(true)
 
-  // Memulihkan sesi login.
+  // =====================================
+  // PEMULIHAN SESI
+  // =====================================
   useEffect(() => {
     let alive = true
 
-    ;(async () => {
-      const raw = sessionStorage.getItem(STORAGE_KEY)
+    async function restoreSession() {
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY)
 
-      if (raw) {
-        try {
-          const saved = JSON.parse(raw) as StoredSession
+        if (!raw) {
+          console.log('[APP] Tidak ada sesi tersimpan.')
+          return
+        }
 
-          const res = await api<User>('me', {
+        const saved = JSON.parse(raw) as StoredSession
+
+        if (!saved.token || !saved.user?.id) {
+          throw new Error('Data sesi tidak valid.')
+        }
+
+        console.log('[APP] Memeriksa sesi login...')
+
+        const response = await withTimeout(
+          api<User>('me', {
             token: saved.token
-          })
+          }),
+          SESSION_TIMEOUT
+        )
 
-          if (!res.data) {
-            throw new Error('Data pengguna tidak ditemukan.')
-          }
+        if (!response.data) {
+          throw new Error('Data pengguna tidak ditemukan.')
+        }
 
-          if (alive) {
-            const next = {
-              ...saved,
-              user: res.data
-            }
+        if (!alive) return
 
-            setSession(next)
+        const next: StoredSession = {
+          ...saved,
+          user: response.data
+        }
 
-            sessionStorage.setItem(
-              STORAGE_KEY,
-              JSON.stringify(next)
-            )
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(next)
+        )
 
-            // Pulihkan identitas OneSignal.
-            try {
-              await oneSignalLogin(next.user.id)
-            } catch (error) {
-              console.error('OneSignal login error:', error)
-            }
-          }
-        } catch (error) {
-          console.error('Session restore error:', error)
-          sessionStorage.removeItem(STORAGE_KEY)
+        setSession(next)
+
+        console.log('[APP] Sesi berhasil dipulihkan.')
+      } catch (error) {
+        console.error('[APP] Pemulihan sesi gagal:', error)
+
+        sessionStorage.removeItem(STORAGE_KEY)
+
+        if (alive) {
+          setSession(null)
+        }
+      } finally {
+        if (alive) {
+          setBoot(false)
+          console.log('[APP] Pembukaan aplikasi selesai.')
         }
       }
+    }
 
-      if (alive) {
-        setBoot(false)
-      }
-    })()
+    restoreSession()
 
     return () => {
       alive = false
     }
   }, [])
 
-  // Login.
+  // =====================================
+  // LOGIN
+  // =====================================
   async function login(
     _unused: User,
     email: string,
@@ -97,38 +128,33 @@ export default function App() {
   ) {
     const client = await getClientInfo()
 
-    const r = await api<StoredSession>('login', {
+    const response = await api<StoredSession>('login', {
       email,
       password,
       client
     })
 
-    const next = r.data
+    const next = response.data
 
     if (!next?.token || !next?.user?.id) {
       throw new Error('Data sesi login tidak valid.')
     }
-
-    setSession(next)
 
     sessionStorage.setItem(
       STORAGE_KEY,
       JSON.stringify(next)
     )
 
+    setSession(next)
     setPage('dashboard')
 
-    // Hubungkan akun aplikasi ke External ID OneSignal.
-    try {
-      await oneSignalLogin(next.user.id)
-    } catch (error) {
-      console.error('OneSignal login error:', error)
-    }
-
+    // OneSignal tidak dijalankan saat login.
     return next.user
   }
 
-  // Register.
+  // =====================================
+  // REGISTER
+  // =====================================
   async function register(
     name: string,
     email: string,
@@ -142,72 +168,25 @@ export default function App() {
     })
   }
 
-  // Mengaktifkan notifikasi melalui tombol lonceng.
-  
-async function enableNotifications() {
-  console.log('[APP] Tombol notifikasi diklik')
-
-  if (!session) {
-    console.error('[APP] Tidak ada pengguna yang login')
-    return
-  }
-
-  try {
-    // 1. Minta izin terlebih dahulu saat konteks klik masih aktif.
-    const result = await oneSignalRequestPermission()
-
-    console.log('[APP] Status izin:', result)
-
-    if (result.browserPermission === 'denied') {
-      alert('Izin notifikasi diblokir oleh Chrome.')
-      return
-    }
-
-    if (result.browserPermission !== 'granted') {
-      alert('Izin notifikasi belum diberikan.')
-      return
-    }
-
-    if (!result.oneSignalPermission) {
-      alert(
-        'Izin browser sudah aktif, tetapi izin OneSignal belum aktif.'
-      )
-      return
-    }
-
-    // 2. Setelah izin berhasil, hubungkan akun.
-    await oneSignalLogin(session.user.id)
-
-    alert('Izin notifikasi berhasil diaktifkan dan akun terhubung!')
-
-  } catch (error) {
-    console.error('[APP] Notification error:', error)
-
+  // =====================================
+  // NOTIFIKASI SEMENTARA DINONAKTIFKAN
+  // =====================================
+  function enableNotifications() {
     alert(
-      error instanceof Error
-        ? error.message
-        : 'Terjadi kesalahan saat mengaktifkan notifikasi.'
+      'Fitur notifikasi sedang dalam perbaikan. Silakan coba kembali nanti.'
     )
   }
-}
 
-
-  // Logout.
+  // =====================================
+  // LOGOUT
+  // =====================================
   async function logout() {
-    // Lepaskan identitas OneSignal.
-    try {
-      await oneSignalLogout()
-    } catch (error) {
-      console.error('OneSignal logout error:', error)
-    }
-
-    // Akhiri sesi backend.
     try {
       await api('logout', {
         token: session?.token
       })
-    } catch {
-      // Tetap logout secara lokal jika server tidak tersedia.
+    } catch (error) {
+      console.error('[APP] Logout server error:', error)
     }
 
     sessionStorage.removeItem(STORAGE_KEY)
@@ -216,7 +195,9 @@ async function enableNotifications() {
     setPage('dashboard')
   }
 
-  // Tampilan loading.
+  // =====================================
+  // LOADING
+  // =====================================
   if (boot) {
     return (
       <div className="splash">
@@ -235,7 +216,9 @@ async function enableNotifications() {
     )
   }
 
-  // Halaman autentikasi.
+  // =====================================
+  // AUTHENTICATION
+  // =====================================
   if (!session) {
     return (
       <Auth
@@ -245,9 +228,11 @@ async function enableNotifications() {
     )
   }
 
+  // =====================================
+  // HALAMAN APLIKASI
+  // =====================================
   const token = session.token
 
-  // Daftar halaman aplikasi.
   const pages: Record<Page, React.ReactNode> = {
     dashboard: <Dashboard token={token} />,
     stock: <Stock token={token} />,
@@ -258,7 +243,6 @@ async function enableNotifications() {
     logs: <Admin token={token} page="logs" />,
     settings: <Admin token={token} page="settings" />
   }
-
 
   return (
     <Shell

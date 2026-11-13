@@ -8,33 +8,6 @@
   <meta name="description" content="APK Management - Inventory and Finance Dashboard" />
 
   <title>APK Management</title>
-
-  <!-- OneSignal Web Push SDK -->
-  <script
-    src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-    defer
-    onerror="console.error('[OneSignal] GAGAL MEMUAT SDK dari CDN')"
-  ></script>
-
-  <script>
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-
-    window.OneSignalDeferred.push(async function (OneSignal) {
-      console.log('[OneSignal] SDK berhasil dimuat');
-
-      try {
-        console.log('[OneSignal] Memulai inisialisasi...');
-
-        await OneSignal.init({
-          appId: 'b34f93f7-d830-4c4a-9d3f-ad6805b6a29e',
-        });
-
-        console.log('[OneSignal] INISIALISASI BERHASIL');
-      } catch (error) {
-        console.error('[OneSignal] ERROR INISIALISASI:', error);
-      }
-    });
-  </script>
 </head>
 
 <body>
