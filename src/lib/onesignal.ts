@@ -3,7 +3,10 @@ type OneSignalInstance = {
   login: (externalId: string) => Promise<void>
   logout: () => Promise<void>
   Notifications: {
-    requestPermission: () => Promise<boolean>
+    requestPermission: () => Promise<void>
+    permission: boolean
+    permissionNative: NotificationPermission
+    isPushSupported: () => boolean
   }
 }
 
@@ -33,22 +36,66 @@ function runOneSignal<T>(
 }
 
 // Hubungkan perangkat dengan akun yang sedang login.
-export function oneSignalLogin(userId: string) {
+export function oneSignalLogin(userId: string): Promise<void> {
   return runOneSignal(async (OneSignal) => {
+    if (!userId) {
+      throw new Error('User ID tidak ditemukan.')
+    }
+
     await OneSignal.login(userId)
   })
 }
 
 // Lepaskan identitas akun dari perangkat.
-export function oneSignalLogout() {
+export function oneSignalLogout(): Promise<void> {
   return runOneSignal(async (OneSignal) => {
     await OneSignal.logout()
   })
 }
 
-// Minta izin notifikasi dari pengguna.
-export function oneSignalRequestPermission() {
+// Meminta izin dan memeriksa status notifikasi.
+export function oneSignalRequestPermission(): Promise<{
+  granted: boolean
+  browserPermission: NotificationPermission
+  oneSignalPermission: boolean
+  supported: boolean
+}> {
   return runOneSignal(async (OneSignal) => {
-    return await OneSignal.Notifications.requestPermission()
+    // Periksa dukungan browser.
+    const supported = OneSignal.Notifications.isPushSupported()
+
+    if (!supported) {
+      return {
+        granted: false,
+        browserPermission:
+          typeof Notification !== 'undefined'
+            ? Notification.permission
+            : 'denied',
+        oneSignalPermission: false,
+        supported: false
+      }
+    }
+
+    // Minta izin notifikasi.
+    await OneSignal.Notifications.requestPermission()
+
+    // Periksa izin asli dari browser.
+    const browserPermission =
+      typeof Notification !== 'undefined'
+        ? Notification.permission
+        : 'denied'
+
+    // Periksa izin dari OneSignal.
+    const oneSignalPermission =
+      OneSignal.Notifications.permission
+
+    return {
+      granted:
+        browserPermission === 'granted' &&
+        oneSignalPermission === true,
+      browserPermission,
+      oneSignalPermission,
+      supported: true
+    }
   })
 }

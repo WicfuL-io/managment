@@ -13,6 +13,7 @@ import POS from './pages/POS'
 import Debt from './pages/Debt'
 
 import { api, getClientInfo } from './lib/api'
+
 import {
   oneSignalLogin,
   oneSignalLogout,
@@ -48,10 +49,14 @@ export default function App() {
             token: saved.token
           })
 
+          if (!res.data) {
+            throw new Error('Data pengguna tidak ditemukan.')
+          }
+
           if (alive) {
             const next = {
               ...saved,
-              user: res.data!
+              user: res.data
             }
 
             setSession(next)
@@ -61,19 +66,22 @@ export default function App() {
               JSON.stringify(next)
             )
 
-            // Pulihkan identitas OneSignal untuk akun tersebut.
+            // Pulihkan identitas OneSignal.
             try {
               await oneSignalLogin(next.user.id)
             } catch (error) {
               console.error('OneSignal login error:', error)
             }
           }
-        } catch {
+        } catch (error) {
+          console.error('Session restore error:', error)
           sessionStorage.removeItem(STORAGE_KEY)
         }
       }
 
-      if (alive) setBoot(false)
+      if (alive) {
+        setBoot(false)
+      }
     })()
 
     return () => {
@@ -95,7 +103,11 @@ export default function App() {
       client
     })
 
-    const next = r.data!
+    const next = r.data
+
+    if (!next?.token || !next?.user?.id) {
+      throw new Error('Data sesi login tidak valid.')
+    }
 
     setSession(next)
 
@@ -106,7 +118,7 @@ export default function App() {
 
     setPage('dashboard')
 
-    // Hubungkan perangkat dengan akun yang berhasil login.
+    // Hubungkan akun aplikasi ke External ID OneSignal.
     try {
       await oneSignalLogin(next.user.id)
     } catch (error) {
@@ -135,18 +147,52 @@ export default function App() {
     if (!session) return
 
     try {
-      // Pastikan perangkat sudah terhubung ke akun yang benar.
+      // Pastikan perangkat terhubung ke akun yang sedang login.
       await oneSignalLogin(session.user.id)
 
-      const granted = await oneSignalRequestPermission()
+      const result = await oneSignalRequestPermission()
 
-      if (granted) {
-        alert('Notifikasi berhasil diaktifkan!')
-      } else {
+      console.log('STATUS NOTIFIKASI:', result)
+
+      if (!result.supported) {
         alert(
-          'Izin notifikasi belum diberikan. Silakan periksa pengaturan notifikasi browser.'
+          'Browser atau perangkat ini tidak mendukung Web Push Notification.'
         )
+        return
       }
+
+      if (result.granted) {
+        alert('Notifikasi berhasil diaktifkan!')
+        return
+      }
+
+      if (result.browserPermission === 'denied') {
+        alert(
+          'Izin notifikasi diblokir oleh browser. Buka pengaturan situs dan ubah Notifikasi menjadi Izinkan.'
+        )
+        return
+      }
+
+      if (result.browserPermission === 'default') {
+        alert(
+          'Browser belum memberikan izin notifikasi. Silakan izinkan permintaan notifikasi.'
+        )
+        return
+      }
+
+      if (
+        result.browserPermission === 'granted' &&
+        !result.oneSignalPermission
+      ) {
+        alert(
+          'Izin Chrome sudah aktif, tetapi OneSignal belum mengonfirmasi izin. Periksa konfigurasi OneSignal dan Service Worker.'
+        )
+        return
+      }
+
+      alert(
+        'Status notifikasi belum aktif. Periksa Console browser untuk informasi lebih lanjut.'
+      )
     } catch (error) {
       console.error('Notification error:', error)
 
@@ -158,13 +204,14 @@ export default function App() {
 
   // Logout.
   async function logout() {
-    // Lepaskan identitas OneSignal sebelum mengakhiri sesi.
+    // Lepaskan identitas OneSignal.
     try {
       await oneSignalLogout()
     } catch (error) {
       console.error('OneSignal logout error:', error)
     }
 
+    // Akhiri sesi backend.
     try {
       await api('logout', {
         token: session?.token
@@ -174,10 +221,12 @@ export default function App() {
     }
 
     sessionStorage.removeItem(STORAGE_KEY)
+
     setSession(null)
     setPage('dashboard')
   }
 
+  // Tampilan loading.
   if (boot) {
     return (
       <div className="splash">
@@ -196,6 +245,7 @@ export default function App() {
     )
   }
 
+  // Halaman autentikasi.
   if (!session) {
     return (
       <Auth
@@ -207,6 +257,7 @@ export default function App() {
 
   const token = session.token
 
+  // Daftar halaman aplikasi.
   const pages: Record<Page, React.ReactNode> = {
     dashboard: <Dashboard token={token} />,
     stock: <Stock token={token} />,
