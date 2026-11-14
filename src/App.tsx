@@ -14,6 +14,12 @@ import Debt from './pages/Debt'
 
 import { api, getClientInfo } from './lib/api'
 
+import {
+  oneSignalLogin,
+  oneSignalLogout,
+  oneSignalRequestPermission
+} from './lib/onesignal'
+
 import type { Page, User } from './types'
 
 const STORAGE_KEY = 'apk_management_session'
@@ -24,7 +30,6 @@ type StoredSession = {
   token: string
 }
 
-// Membatasi waktu tunggu API.
 function withTimeout<T>(
   promise: Promise<T>,
   milliseconds: number
@@ -38,6 +43,14 @@ function withTimeout<T>(
       .then(resolve)
       .catch(reject)
       .finally(() => window.clearTimeout(timeout))
+  })
+}
+
+// OneSignal berjalan di latar belakang.
+// Kegagalannya tidak boleh mengganggu aplikasi utama.
+function connectOneSignal(userId: string) {
+  void oneSignalLogin(userId).catch(error => {
+    console.error('[OneSignal] Gagal menghubungkan akun:', error)
   })
 }
 
@@ -95,6 +108,10 @@ export default function App() {
         setSession(next)
 
         console.log('[APP] Sesi berhasil dipulihkan.')
+
+        // Hubungkan akun tanpa menunggu OneSignal.
+        connectOneSignal(String(next.user.id))
+
       } catch (error) {
         console.error('[APP] Pemulihan sesi gagal:', error)
 
@@ -148,7 +165,9 @@ export default function App() {
     setSession(next)
     setPage('dashboard')
 
-    // OneSignal tidak dijalankan saat login.
+    // Hubungkan akun setelah login berhasil.
+    connectOneSignal(String(next.user.id))
+
     return next.user
   }
 
@@ -169,18 +188,46 @@ export default function App() {
   }
 
   // =====================================
-  // NOTIFIKASI SEMENTARA DINONAKTIFKAN
+  // AKTIFKAN NOTIFIKASI
   // =====================================
-  function enableNotifications() {
-    alert(
-      'Fitur notifikasi sedang dalam perbaikan. Silakan coba kembali nanti.'
-    )
+  async function enableNotifications() {
+    try {
+      console.log('[APP] Tombol notifikasi diklik.')
+
+      const result = await oneSignalRequestPermission()
+
+      if (result.granted) {
+        alert('Notifikasi berhasil diaktifkan!')
+      } else if (result.browserPermission === 'denied') {
+        alert(
+          'Izin notifikasi ditolak. Silakan aktifkan izin notifikasi melalui pengaturan browser.'
+        )
+      } else {
+        alert(
+          'Izin notifikasi belum berhasil diaktifkan. Silakan coba kembali.'
+        )
+      }
+
+    } catch (error) {
+      console.error('[APP] Notification error:', error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Gagal mengaktifkan notifikasi.'
+      )
+    }
   }
 
   // =====================================
   // LOGOUT
   // =====================================
   async function logout() {
+    // Logout aplikasi tidak bergantung pada OneSignal.
+    void oneSignalLogout().catch(error => {
+      console.error('[OneSignal] Logout gagal:', error)
+    })
+
     try {
       await api('logout', {
         token: session?.token

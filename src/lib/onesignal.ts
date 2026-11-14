@@ -3,7 +3,7 @@ type OneSignalInstance = {
   login: (externalId: string) => Promise<void>
   logout: () => Promise<void>
   Notifications: {
-    requestPermission: () => Promise<void>
+    requestPermission: () => Promise<boolean>
     permission: boolean
   }
 }
@@ -13,107 +13,87 @@ declare global {
     OneSignalDeferred?: Array<
       (OneSignal: OneSignalInstance) => void | Promise<void>
     >
+    OneSignalReady?: Promise<OneSignalInstance>
   }
 }
 
-function runOneSignal<T>(
-  callback: (OneSignal: OneSignalInstance) => Promise<T>
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    console.log('[OneSignal] Menunggu SDK...')
+const TIMEOUT = 15000
 
-    if (!window.OneSignalDeferred) {
-      window.OneSignalDeferred = []
+async function getOneSignal(): Promise<OneSignalInstance> {
+  if (!window.OneSignalReady) {
+    throw new Error('OneSignal belum diinisialisasi.')
+  }
+
+  let timeoutId: number | undefined
+
+  try {
+    return await Promise.race([
+      window.OneSignalReady,
+      new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          reject(new Error('OneSignal tidak merespons dalam 15 detik.'))
+        }, TIMEOUT)
+      })
+    ])
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId)
     }
-
-    let completed = false
-
-    const timeout = window.setTimeout(() => {
-      if (!completed) {
-        completed = true
-        reject(
-          new Error(
-            'OneSignal SDK tidak merespons. Periksa index.html dan koneksi internet.'
-          )
-        )
-      }
-    }, 15000)
-
-    window.OneSignalDeferred.push(async (OneSignal) => {
-      if (completed) return
-
-      try {
-        console.log('[OneSignal] SDK berhasil dimuat')
-
-        const result = await callback(OneSignal)
-
-        completed = true
-        window.clearTimeout(timeout)
-
-        resolve(result)
-      } catch (error) {
-        completed = true
-        window.clearTimeout(timeout)
-
-        reject(error)
-      }
-    })
-  })
+  }
 }
 
 // Hubungkan perangkat dengan akun pengguna.
-export function oneSignalLogin(userId: string): Promise<void> {
-  return runOneSignal(async (OneSignal) => {
-    if (!userId) {
-      throw new Error('User ID tidak ditemukan.')
-    }
+export async function oneSignalLogin(userId: string): Promise<void> {
+  if (!userId) {
+    throw new Error('User ID tidak ditemukan.')
+  }
 
-    console.log('[OneSignal] Login External ID:', userId)
+  const OneSignal = await getOneSignal()
 
-    await OneSignal.login(userId)
+  console.log('[OneSignal] Login External ID:', userId)
 
-    console.log('[OneSignal] Akun berhasil dihubungkan')
-  })
+  await OneSignal.login(userId)
+
+  console.log('[OneSignal] Akun berhasil dihubungkan')
 }
 
 // Lepaskan identitas pengguna.
-export function oneSignalLogout(): Promise<void> {
-  return runOneSignal(async (OneSignal) => {
-    await OneSignal.logout()
+export async function oneSignalLogout(): Promise<void> {
+  const OneSignal = await getOneSignal()
 
-    console.log('[OneSignal] Logout berhasil')
-  })
+  await OneSignal.logout()
+
+  console.log('[OneSignal] Logout berhasil')
 }
 
 // Meminta izin notifikasi.
-export function oneSignalRequestPermission(): Promise<{
+export async function oneSignalRequestPermission(): Promise<{
   granted: boolean
   browserPermission: NotificationPermission
   oneSignalPermission: boolean
 }> {
-  return runOneSignal(async (OneSignal) => {
-    console.log('[OneSignal] Meminta izin notifikasi...')
+  if (!('Notification' in window)) {
+    throw new Error('Browser tidak mendukung Notification API.')
+  }
 
-    if (!('Notification' in window)) {
-      throw new Error('Browser tidak mendukung Notification API.')
-    }
+  const OneSignal = await getOneSignal()
 
-    await OneSignal.Notifications.requestPermission()
+  console.log('[OneSignal] Meminta izin notifikasi...')
 
-    const browserPermission = Notification.permission
-    const oneSignalPermission =
-      OneSignal.Notifications.permission
+  await OneSignal.Notifications.requestPermission()
 
-    const result = {
-      granted:
-        browserPermission === 'granted' &&
-        oneSignalPermission === true,
-      browserPermission,
-      oneSignalPermission
-    }
+  const browserPermission = Notification.permission
+  const oneSignalPermission = OneSignal.Notifications.permission
 
-    console.log('[OneSignal] Hasil pemeriksaan:', result)
+  const result = {
+    granted:
+      browserPermission === 'granted' &&
+      oneSignalPermission === true,
+    browserPermission,
+    oneSignalPermission
+  }
 
-    return result
-  })
+  console.log('[OneSignal] Hasil pemeriksaan:', result)
+
+  return result
 }
