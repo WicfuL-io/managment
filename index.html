@@ -12,6 +12,7 @@
   <!-- OneSignal Web SDK v16 -->
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
+
     window.OneSignalReady = new Promise((resolve, reject) => {
       window.OneSignalDeferred.push(async function (OneSignal) {
         try {
@@ -24,7 +25,9 @@
 
             serviceWorkerParam: {
               scope: '/push/onesignal/'
-            }
+            },
+
+            serviceWorkerOverrideForTypical: true
           });
 
           console.log('[OneSignal] INISIALISASI BERHASIL');

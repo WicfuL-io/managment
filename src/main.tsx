@@ -9,23 +9,31 @@ import './styles.css'
 
 import { registerSW } from 'virtual:pwa-register'
 
-// Jalankan aplikasi terlebih dahulu.
-// Registrasi PWA dilakukan setelah aplikasi selesai dimuat.
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
 )
 
-// Registrasi Service Worker tanpa memaksa reload aplikasi.
 window.addEventListener(
   'load',
   () => {
-    registerSW({
+    const updateSW = registerSW({
       immediate: false,
 
       onNeedRefresh() {
         console.log('[PWA] Pembaruan aplikasi tersedia.')
+
+        const accepted = window.confirm(
+          'Versi terbaru APK Management tersedia. Apakah kamu ingin memperbarui aplikasi sekarang?'
+        )
+
+        if (accepted) {
+          console.log('[PWA] Memperbarui aplikasi...')
+          void updateSW(true)
+        } else {
+          console.log('[PWA] Pembaruan ditunda.')
+        }
       },
 
       onOfflineReady() {
