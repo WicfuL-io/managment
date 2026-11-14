@@ -16,8 +16,49 @@
     window.OneSignalReady = new Promise((resolve, reject) => {
       window.OneSignalDeferred.push(async function (OneSignal) {
         try {
-          console.log('[OneSignal] Memulai inisialisasi...');
+          console.log('[OneSignal] Memulai registrasi Worker...');
 
+          // 1. Daftarkan Service Worker OneSignal terlebih dahulu
+          const registration = await navigator.serviceWorker.register(
+            '/OneSignalSDKWorker.js',
+            {
+              scope: '/push/onesignal/'
+            }
+          );
+
+          console.log('[OneSignal] Registrasi Worker:', registration.scope);
+
+          // 2. Tunggu sampai Worker aktif
+          let worker =
+            registration.installing ||
+            registration.waiting;
+
+          if (worker && worker.state !== 'activated') {
+            await new Promise((resolveWorker, rejectWorker) => {
+              const checkState = () => {
+                if (worker.state === 'activated') {
+                  resolveWorker();
+                }
+
+                if (worker.state === 'redundant') {
+                  rejectWorker(
+                    new Error('OneSignal Service Worker gagal diaktifkan.')
+                  );
+                }
+              };
+
+              worker.addEventListener('statechange', checkState);
+              checkState();
+            });
+          }
+
+          if (!registration.active) {
+            throw new Error('OneSignal Service Worker belum aktif.');
+          }
+
+          console.log('[OneSignal] Worker berhasil aktif.');
+
+          // 3. Inisialisasi SDK setelah Worker tersedia
           await OneSignal.init({
             appId: 'b34f93f7-d830-4c4a-9d3f-ad6805b6a29e',
 
@@ -25,16 +66,15 @@
 
             serviceWorkerParam: {
               scope: '/push/onesignal/'
-            },
-
-            serviceWorkerOverrideForTypical: true
+            }
           });
 
           console.log('[OneSignal] INISIALISASI BERHASIL');
 
           resolve(OneSignal);
+
         } catch (error) {
-          console.error('[OneSignal] ERROR INISIALISASI:', error);
+          console.error('[OneSignal] ERROR:', error);
           reject(error);
         }
       });
@@ -50,6 +90,7 @@
 
 <body>
   <div id="root"></div>
+
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
