@@ -23,6 +23,7 @@ import {
 import type { Page, User } from './types'
 
 const STORAGE_KEY = 'apk_management_session'
+const LAST_EMAIL_KEY = 'apk_management_last_email'
 const SESSION_TIMEOUT = 8000
 
 type StoredSession = {
@@ -46,6 +47,34 @@ function withTimeout<T>(
   })
 }
 
+function getLastEmail(): string {
+  try {
+    return localStorage.getItem(LAST_EMAIL_KEY) || ''
+  } catch (error) {
+    console.error('[APP] Gagal membaca akun terakhir:', error)
+    return ''
+  }
+}
+
+function saveLastEmail(email: string) {
+  try {
+    localStorage.setItem(
+      LAST_EMAIL_KEY,
+      email.trim().toLowerCase()
+    )
+  } catch (error) {
+    console.error('[APP] Gagal menyimpan akun terakhir:', error)
+  }
+}
+
+function removeLastEmail() {
+  try {
+    localStorage.removeItem(LAST_EMAIL_KEY)
+  } catch (error) {
+    console.error('[APP] Gagal menghapus akun terakhir:', error)
+  }
+}
+
 // OneSignal berjalan di latar belakang.
 // Kegagalannya tidak boleh mengganggu aplikasi utama.
 function connectOneSignal(userId: string) {
@@ -58,6 +87,9 @@ export default function App() {
   const [session, setSession] = useState<StoredSession | null>(null)
   const [page, setPage] = useState<Page>('dashboard')
   const [boot, setBoot] = useState(true)
+
+  // Email akun terakhir yang pernah berhasil login.
+  const [lastEmail, setLastEmail] = useState<string>(getLastEmail)
 
   // =====================================
   // PEMULIHAN SESI
@@ -107,9 +139,15 @@ export default function App() {
 
         setSession(next)
 
+        // Sinkronkan email akun terakhir.
+        if (next.user.email) {
+          const email = String(next.user.email)
+          setLastEmail(email)
+          saveLastEmail(email)
+        }
+
         console.log('[APP] Sesi berhasil dipulihkan.')
 
-        // Hubungkan akun tanpa menunggu OneSignal.
         connectOneSignal(String(next.user.id))
 
       } catch (error) {
@@ -162,13 +200,26 @@ export default function App() {
       JSON.stringify(next)
     )
 
+    // Simpan email setelah login berhasil.
+    const normalizedEmail = email.trim().toLowerCase()
+
+    setLastEmail(normalizedEmail)
+    saveLastEmail(normalizedEmail)
+
     setSession(next)
     setPage('dashboard')
 
-    // Hubungkan akun setelah login berhasil.
     connectOneSignal(String(next.user.id))
 
     return next.user
+  }
+
+  // =====================================
+  // GANTI / HAPUS AKUN TERAKHIR
+  // =====================================
+  function forgetLastAccount() {
+    removeLastEmail()
+    setLastEmail('')
   }
 
   // =====================================
@@ -222,24 +273,31 @@ export default function App() {
   // =====================================
   // LOGOUT
   // =====================================
-  async function logout() {
-    // Logout aplikasi tidak bergantung pada OneSignal.
-    void oneSignalLogout().catch(error => {
-      console.error('[OneSignal] Logout gagal:', error)
-    })
+  function logout() {
+    const currentToken = session?.token
 
-    try {
-      await api('logout', {
-        token: session?.token
-      })
-    } catch (error) {
-      console.error('[APP] Logout server error:', error)
-    }
-
+    // Tutup sesi aplikasi langsung.
     sessionStorage.removeItem(STORAGE_KEY)
 
     setSession(null)
     setPage('dashboard')
+
+    // Logout OneSignal berjalan di latar belakang.
+    void oneSignalLogout().catch(error => {
+      console.error('[OneSignal] Logout gagal:', error)
+    })
+
+    // Beri tahu server tanpa menahan tampilan login.
+    if (currentToken) {
+      void api('logout', {
+        token: currentToken
+      }).catch(error => {
+        console.error('[APP] Logout server error:', error)
+      })
+    }
+
+    // Jangan hapus LAST_EMAIL_KEY.
+    // Akun terakhir tetap diingat pada perangkat.
   }
 
   // =====================================
@@ -271,6 +329,8 @@ export default function App() {
       <Auth
         onLogin={login}
         onRegister={register}
+        rememberedEmail={lastEmail}
+        onForgetRememberedEmail={forgetLastAccount}
       />
     )
   }
@@ -294,6 +354,7 @@ export default function App() {
   return (
     <Shell
       user={session.user}
+      token={token}
       page={page}
       setPage={setPage}
       onLogout={logout}
