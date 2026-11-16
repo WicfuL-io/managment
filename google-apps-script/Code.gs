@@ -123,6 +123,102 @@ const SHEETS = {
 
 
 // ======================================================
+// KONFIGURASI ONESIGNAL PUSH NOTIFICATION
+// ======================================================
+
+const ONESIGNAL_APP_ID = '091fcbaa-85b0-4a7a-945e-6af276a7fc89';
+const ONESIGNAL_API_URL = 'https://api.onesignal.com/notifications';
+
+/**
+ * Mengirim push notification ke satu atau beberapa External ID.
+ * REST API Key wajib disimpan di Apps Script Script Properties
+ * dengan nama ONESIGNAL_REST_API_KEY.
+ * Kegagalan push tidak akan membatalkan transaksi utama.
+ */
+function sendOneSignalPush_(externalIds, title, message, data) {
+  try {
+    const apiKey = PropertiesService.getScriptProperties()
+      .getProperty('ONESIGNAL_REST_API_KEY');
+
+    if (!apiKey) {
+      Logger.log('[OneSignal] ONESIGNAL_REST_API_KEY belum diatur.');
+      return { success: false, reason: 'API key belum diatur.' };
+    }
+
+    const ids = [...new Set(
+      (Array.isArray(externalIds) ? externalIds : [externalIds])
+        .map(id => String(id || '').trim())
+        .filter(Boolean)
+    )];
+
+    if (ids.length === 0) {
+      return { success: false, reason: 'Tidak ada External ID penerima.' };
+    }
+
+    const results = [];
+
+    for (let i = 0; i < ids.length; i += 2000) {
+      const batch = ids.slice(i, i + 2000);
+      const payload = {
+        app_id: ONESIGNAL_APP_ID,
+        include_aliases: { external_id: batch },
+        target_channel: 'push',
+        headings: { en: String(title || 'APK Management'), id: String(title || 'APK Management') },
+        contents: { en: String(message || 'Ada aktivitas baru.'), id: String(message || 'Ada aktivitas baru.') },
+        data: data || {}
+      };
+
+      const response = UrlFetchApp.fetch(ONESIGNAL_API_URL, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Key ' + apiKey },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+
+      const status = response.getResponseCode();
+      const responseText = response.getContentText();
+      let responseData;
+      try { responseData = JSON.parse(responseText); }
+      catch (e) { responseData = { raw: responseText }; }
+
+      const success = status >= 200 && status < 300;
+      Logger.log('[OneSignal] HTTP ' + status + ' | ' + JSON.stringify(responseData));
+      results.push({ success: success, status: status, response: responseData });
+    }
+
+    return { success: results.every(result => result.success), results: results };
+  } catch (error) {
+    Logger.log('[OneSignal] Exception: ' + (error && error.message ? error.message : error));
+    return { success: false, reason: String(error) };
+  }
+}
+
+
+function sendPushToAdmins_(title, message, data) {
+  const admins = rows_('Users').filter(user =>
+    user.role === 'admin' && user.status === 'active'
+  );
+  return sendOneSignalPush_(
+    admins.map(user => user.id).filter(Boolean),
+    title, message, data || {}
+  );
+}
+
+
+/** Jalankan manual dari editor Apps Script untuk menguji push admin. */
+function testOneSignalPush() {
+  const result = sendPushToAdmins_(
+    'Tes APK Management',
+    'Pengiriman notifikasi otomatis dari Google Apps Script berhasil diuji.',
+    { type: 'TEST', module: 'System' }
+  );
+  Logger.log(JSON.stringify(result));
+  return result;
+}
+
+
+// ======================================================
 // API
 // ======================================================
 
@@ -1976,115 +2072,73 @@ function createActivityNotification_(user, action, module, description) {
 
   const recipients = users.filter(target => {
     if (target.status !== 'active') return false;
-
-    // Jangan kirim notifikasi aktivitas kepada pelakunya sendiri.
     if (String(target.id) === String(user.id)) return false;
-
-    // Semua admin aktif menerima aktivitas dari pengguna lain.
     if (target.role === 'admin') return true;
-
-    // Aktivitas autentikasi hanya dikirim kepada admin.
     if (module === 'Auth' || module === 'Pengguna') return false;
 
     let permissions = [];
+    try { permissions = JSON.parse(target.permissions || '[]'); }
+    catch (e) { permissions = []; }
+    if (!Array.isArray(permissions)) permissions = [];
 
-    try {
-      permissions = JSON.parse(target.permissions || '[]');
-    } catch (e) {
-      permissions = [];
-    }
-
-    if (!Array.isArray(permissions)) {
-      permissions = [];
-    }
-
-    // Alias disesuaikan dengan nama izin yang mungkin dipakai frontend.
     const permissionMap = {
-      'Stock Barang': [
-        'Stock Barang',
-        'Tambah barang'
-      ],
-      'Point of Sale': [
-        'Point of Sale',
-        'POS',
-        'Stock Barang',
-        'Tambah transaksi'
-      ],
-      'Keuangan': [
-        'Keuangan',
-        'Tambah transaksi'
-      ],
-      'Utang & Piutang': [
-        'Utang & Piutang'
-      ]
+      'Stock Barang': ['Stock Barang', 'Tambah barang'],
+      'Point of Sale': ['Point of Sale', 'POS', 'Stock Barang', 'Tambah transaksi'],
+      'Keuangan': ['Keuangan', 'Tambah transaksi'],
+      'Utang & Piutang': ['Utang & Piutang']
     };
-
     const required = permissionMap[module] || [module];
-
-    return required.some(permission =>
-      permissions.includes(permission)
-    );
+    return required.some(permission => permissions.includes(permission));
   });
 
   if (recipients.length === 0) return;
 
   const title = notificationTitle_(action, module);
-  const message = String(
-    description || 'Aktivitas baru dilakukan.'
-  );
-
-  const actorName = String(
-    user.name || user.email || 'Pengguna'
-  );
-
+  const message = String(description || 'Aktivitas baru dilakukan.');
+  const actorName = String(user.name || user.email || 'Pengguna');
   const now = new Date();
 
+  // Simpan notifikasi di Google Sheets untuk pusat notifikasi aplikasi.
   recipients.forEach(target => {
     append_('Notifications', [
-      id_(),
-      target.id,
-      user.id,
-      actorName,
-      action,
-      module,
-      title,
-      message,
-      now,
-      false,
-      '',
-      ''
+      id_(), target.id, user.id, actorName, action, module,
+      title, message, now, false, '', ''
     ]);
   });
-}
 
+  // Kirim push ke External ID yang sama dengan ID pengguna aplikasi.
+  sendOneSignalPush_(
+    recipients.map(target => target.id).filter(Boolean),
+    title,
+    actorName + ': ' + message,
+    { type: 'ACTIVITY', action: action, module: module, actorId: String(user.id), actorName: actorName }
+  );
+}
 
 // Notifikasi sistem untuk seluruh admin aktif.
 function notifyAdmins_(action, title, message) {
-  const admins = rows_('Users').filter(u =>
-    u.role === 'admin' &&
-    u.status === 'active'
+  const admins = rows_('Users').filter(user =>
+    user.role === 'admin' && user.status === 'active'
   );
 
+  if (admins.length === 0) return;
   const now = new Date();
 
+  // Simpan notifikasi internal untuk seluruh admin aktif.
   admins.forEach(admin => {
     append_('Notifications', [
-      id_(),
-      admin.id,
-      '',
-      'Sistem',
-      action,
-      'Auth',
-      title,
-      message,
-      now,
-      false,
-      '',
-      ''
+      id_(), admin.id, '', 'Sistem', action, 'Auth',
+      title, message, now, false, '', ''
     ]);
   });
-}
 
+  // Kirim push ke External ID seluruh admin aktif.
+  sendOneSignalPush_(
+    admins.map(admin => admin.id).filter(Boolean),
+    title, message,
+    { type: 'SYSTEM', action: action, module: 'Auth' }
+  );
+}
 
 // Judul notifikasi berdasarkan jenis aktivitas.
 function notificationTitle_(action, module) {
@@ -2615,4 +2669,25 @@ function json_(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ======================================================
+// OTORISASI GOOGLE APPS SCRIPT UNTUK ONESIGNAL
+// ======================================================
+
+function authorizeOneSignalPermissions() {
+  const response = UrlFetchApp.fetch(
+    'https://api.onesignal.com',
+    {
+      method: 'get',
+      muteHttpExceptions: true
+    }
+  );
+
+  Logger.log(
+    '[OneSignal] Otorisasi berhasil. HTTP: ' +
+    response.getResponseCode()
+  );
+
+  return true;
 }
