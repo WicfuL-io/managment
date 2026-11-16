@@ -23,6 +23,7 @@ import {
 
 import type { Page, User } from '../types'
 import { api } from '../lib/api'
+import '../css/shell.css'
 
 const nav: {
   id: Page

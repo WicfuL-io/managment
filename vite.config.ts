@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'prompt',
 
       manifest: {
-        name: 'APK Management',
+        name: 'ManagementWF',
         short_name: 'Management',
-        description: 'Aplikasi manajemen stok dan keuangan',
+        description: 'Aplikasi manajemen kehidupan sehari-hari untuk UMKM.',
         theme_color: '#07111f',
         background_color: '#07111f',
         display: 'standalone',

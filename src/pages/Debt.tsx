@@ -26,7 +26,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { api } from '../lib/api'
-import './Debt.css'
+import '../css/Debt.css'
 
 type Direction = 'payable' | 'receivable'
 type Kind = 'money' | 'goods'

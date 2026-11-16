@@ -22,6 +22,8 @@ import {
 
 import type { Page, User } from './types'
 
+import './css/App.css'
+
 const STORAGE_KEY = 'apk_management_session'
 const LAST_EMAIL_KEY = 'apk_management_last_email'
 const SESSION_TIMEOUT = 8000
