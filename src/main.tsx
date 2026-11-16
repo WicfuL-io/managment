@@ -5,24 +5,37 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+
 import './css/styles.css'
 import './css/index.css'
 
-
 import { registerSW } from 'virtual:pwa-register'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// ======================================================
+// APK MANAGEMENT - RENDER APLIKASI
+// ======================================================
+
+ReactDOM.createRoot(
+  document.getElementById('root')!
+).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
+  </React.StrictMode>
 )
+
+// ======================================================
+// APK MANAGEMENT - PWA SERVICE WORKER
+// ======================================================
 
 window.addEventListener(
   'load',
   () => {
+    console.log('[PWA] Memulai registrasi Service Worker...')
+
     const updateSW = registerSW({
       immediate: false,
 
+      // Pembaruan aplikasi tersedia
       onNeedRefresh() {
         console.log('[PWA] Pembaruan aplikasi tersedia.')
 
@@ -38,17 +51,37 @@ window.addEventListener(
         }
       },
 
+      // Aplikasi siap offline
       onOfflineReady() {
-        console.log('[PWA] Aplikasi siap digunakan secara offline.')
+        console.log(
+          '[PWA] Aplikasi siap digunakan secara offline.'
+        )
       },
 
+      // Service Worker berhasil terdaftar
       onRegisteredSW(_swUrl, registration) {
         console.log(
           '[PWA] Service Worker terdaftar:',
           registration?.scope
         )
+
+        if (registration) {
+          console.log(
+            '[PWA] Status Service Worker:',
+            registration.active?.state ||
+            'Menunggu aktivasi'
+          )
+
+          console.log(
+            '[PWA] Status update:',
+            registration.waiting
+              ? 'Pembaruan menunggu'
+              : 'Tidak ada pembaruan tertunda'
+          )
+        }
       },
 
+      // Registrasi gagal
       onRegisterError(error) {
         console.error(
           '[PWA] Gagal mendaftarkan Service Worker:',
