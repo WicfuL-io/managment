@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -21,10 +21,10 @@ import {
   Banknote,
   History,
   ArrowDownUp
-} from 'lucide-react'
+} from 'lucide-react';
 
-import { api } from '../lib/api'
-import '../css/Finance.css'
+import { api } from '../lib/api';
+import '../css/Finance.css';
 
 type FinanceTab = 'all' | 'income' | 'expense'
 type ModalType = 'income' | 'expense' | 'transfer' | 'categories' | null
