@@ -417,6 +417,37 @@ export default function Debt({ token }: Props) {
     statusFilter
   ])
 
+  // Urutan daftar: jatuh tempo, belum lunas, tanpa batas waktu, lalu lunas.
+  const sortedFiltered = useMemo(() => {
+    const today = new Date()
+    const todayKey = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0')
+    ].join('-')
+
+    const getPriority = (debt: Debt) => {
+      if (debt.status === 'lunas') return 3
+
+      const dueDate = String(debt.dueDate || '').slice(0, 10)
+      if (!dueDate) return 2
+
+      if (debt.status === 'jatuh_tempo' || dueDate <= todayKey) return 0
+      return 1
+    }
+
+    return [...filtered].sort((a, b) => {
+      const priorityDifference = getPriority(a) - getPriority(b)
+      if (priorityDifference !== 0) return priorityDifference
+
+      const aDue = String(a.dueDate || '9999-12-31').slice(0, 10)
+      const bDue = String(b.dueDate || '9999-12-31').slice(0, 10)
+      if (getPriority(a) <= 1 && aDue !== bDue) return aDue.localeCompare(bDue)
+
+      return String(b.date || '').localeCompare(String(a.date || ''))
+    })
+  }, [filtered])
+
   const changeView = (mode: ViewMode) => {
     setViewMode(mode)
     setSearch('')
@@ -1032,7 +1063,7 @@ export default function Debt({ token }: Props) {
 
           <div className="debt-record-grid">
 
-            {filtered.map(debt => (
+            {sortedFiltered.map(debt => (
               <article className="debt-record-card" key={debt.id}>
 
                 <div className="debt-record-top">

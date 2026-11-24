@@ -1,0 +1,444 @@
+
+.dashboard-page {
+  gap: 22px;
+}
+
+.dash-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dash-section-heading h2 {
+  margin: 5px 0 4px;
+  color: var(--text-primary, #eaf2fb);
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -.35px;
+}
+
+.dash-section-heading p {
+  margin: 0;
+  color: var(--text-muted, #8fa1b6);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.dash-kicker {
+  color: #36cda0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.dash-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #9eb1c5;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dash-live span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2ed39a;
+  box-shadow: 0 0 0 4px rgba(46, 211, 154, .1);
+}
+
+/* PEMBAYARAN */
+
+.dash-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dash-payment-card {
+  min-width: 0;
+  padding: 19px;
+  border: 1px solid rgba(148, 163, 184, .15);
+  border-radius: 15px;
+  background: linear-gradient(
+    145deg,
+    rgba(20, 36, 54, .96),
+    rgba(11, 24, 39, .96)
+  );
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+
+.dash-payment-card.cash {
+  border-top: 2px solid #32c995;
+}
+
+.dash-payment-card.debit {
+  border-top: 2px solid #5c9df5;
+}
+
+.dash-payment-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #c8d5e3;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dash-payment-icon {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .06);
+}
+
+.cash .dash-payment-icon {
+  color: #32d49b;
+}
+
+.debit .dash-payment-icon {
+  color: #70aaff;
+}
+
+.dash-payment-balance {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 17px;
+  color: #f2f7fc;
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+
+.dash-payment-caption {
+  display: block;
+  margin-top: 3px;
+  color: #8498ad;
+  font-size: 10px;
+}
+
+.dash-payment-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(148, 163, 184, .13);
+}
+
+.dash-payment-detail span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8fa3b8;
+  font-size: 11px;
+}
+
+.dash-payment-detail span:first-child svg {
+  color: #35d39c;
+}
+
+.dash-payment-detail span:nth-child(2) svg {
+  color: #ff9b70;
+}
+
+.dash-payment-detail b {
+  margin-left: auto;
+  color: #d9e4ef;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dash-payment-month {
+  margin-top: 12px;
+  color: #8094aa;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.dash-account-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(96, 165, 250, .16);
+  border-radius: 10px;
+  background: rgba(59, 130, 246, .055);
+  color: #91a8bf;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.dash-account-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #75aef4;
+}
+
+/* UTANG DAN PIUTANG */
+
+.dash-debt-counters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.dash-debt-counters span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid rgba(148, 163, 184, .14);
+  border-radius: 9px;
+  color: #a9bacb;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dash-debt-counters span.has-overdue {
+  border-color: rgba(248, 113, 113, .25);
+  color: #ff9999;
+  background: rgba(248, 113, 113, .06);
+}
+
+.dash-debt-panel {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, .15);
+  border-radius: 14px;
+  background: rgba(13, 27, 43, .75);
+}
+
+.dash-debt-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-debt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border-bottom: 1px solid rgba(148, 163, 184, .1);
+}
+
+.dash-debt-row:last-child {
+  border-bottom: 0;
+}
+
+.dash-debt-direction {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.dash-debt-direction.payable {
+  color: #ff9b83;
+  background: rgba(249, 115, 96, .1);
+}
+
+.dash-debt-direction.receivable {
+  color: #42d5a0;
+  background: rgba(45, 212, 155, .1);
+}
+
+.dash-debt-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-debt-title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-debt-title-line strong {
+  color: #e1eaf3;
+  font-size: 12px;
+}
+
+.dash-debt-status {
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.dash-debt-status.overdue {
+  color: #ff9999;
+  background: rgba(248, 113, 113, .1);
+}
+
+.dash-debt-status.soon {
+  color: #f4c36e;
+  background: rgba(245, 180, 75, .1);
+}
+
+.dash-debt-description {
+  overflow: hidden;
+  color: #91a4b8;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-debt-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #778da4;
+  font-size: 9px;
+}
+
+.dash-debt-amount {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.dash-debt-amount strong {
+  color: #e7eef6;
+  font-size: 12px;
+}
+
+.dash-debt-amount span {
+  color: #7f93a8;
+  font-size: 9px;
+}
+
+.dash-empty {
+  display: flex;
+  min-height: 140px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px;
+  text-align: center;
+}
+
+.dash-empty svg {
+  color: #39d09b;
+}
+
+.dash-empty strong {
+  color: #dce8f3;
+  font-size: 12px;
+}
+
+.dash-empty span {
+  color: #8297ac;
+  font-size: 10px;
+}
+
+.dash-spin {
+  animation: dash-spin 1s linear infinite;
+}
+
+@keyframes dash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1050px) {
+  .dash-payment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-page {
+    gap: 18px;
+  }
+
+  .dash-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dash-section-heading h2 {
+    font-size: 17px;
+  }
+
+  .dash-payment-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .dash-payment-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .dash-payment-balance {
+    font-size: 16px;
+  }
+
+  .dash-payment-detail span,
+  .dash-payment-detail b {
+    font-size: 9px;
+  }
+
+  .dash-payment-month {
+    font-size: 8px;
+  }
+
+  .dash-debt-counters {
+    justify-content: flex-start;
+  }
+
+  .dash-debt-row {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .dash-debt-direction {
+    width: 30px;
+    height: 30px;
+  }
+
+  .dash-debt-amount {
+    max-width: 105px;
+    padding-top: 2px;
+  }
+
+  .dash-debt-amount strong {
+    font-size: 10px;
+    text-align: right;
+  }
+
+  .dash-debt-amount span {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .dash-payment-grid {
+    grid-template-columns: 1fr;
+  }
+}
+ejdjebwk

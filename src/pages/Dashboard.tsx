@@ -1,32 +1,35 @@
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ElementType } from 'react'
 import {
-  Boxes,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  AlertTriangle,
   Activity,
-  RefreshCw
+  AlertCircle,
+  AlertTriangle,
+  Banknote,
+  Boxes,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  ArrowDownRight,
+  ArrowUpRight,
+  Package
 } from 'lucide-react'
+
 import { api } from '../lib/api'
+
 import {
   StockChart,
   FinanceChart,
   type MonthlyPoint
 } from '../components/Charts'
 
-/**
- * Mengubah berbagai format data menjadi angka.
- *
- * Contoh:
- * 10000       -> 10000
- * "10000"     -> 10000
- * "10.000"    -> 10000
- * "Rp 10.000" -> 10000
- * "10,5"      -> 10.5
- */
+import '../css/Dashboard.css'
+
 const toNumber = (value: unknown): number => {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0
@@ -36,35 +39,25 @@ const toNumber = (value: unknown): number => {
     return 0
   }
 
-  let valueText = String(value)
+  let text = String(value)
     .trim()
     .replace(/rp/gi, '')
     .replace(/\s/g, '')
     .replace(/[^\d,.-]/g, '')
 
-  if (!valueText || valueText === '-' || valueText === '.') {
-    return 0
+  if (!text || text === '-' || text === '.') return 0
+
+  if (text.includes(',')) {
+    text = text.replace(/\./g, '').replace(',', '.')
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(text)) {
+    text = text.replace(/\./g, '')
   }
 
-  // Format Indonesia: 10.000,50
-  if (valueText.includes(',')) {
-    valueText = valueText
-      .replace(/\./g, '')
-      .replace(',', '.')
-  }
-  // Format ribuan Indonesia: 10.000
-  else if (/^-?\d{1,3}(\.\d{3})+$/.test(valueText)) {
-    valueText = valueText.replace(/\./g, '')
-  }
-
-  const result = Number(valueText)
+  const result = Number(text)
 
   return Number.isFinite(result) ? result : 0
 }
 
-/**
- * Format mata uang Rupiah dengan aman.
- */
 const money = (value: unknown): string => {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -73,19 +66,59 @@ const money = (value: unknown): string => {
   }).format(toNumber(value))
 }
 
+const formatDate = (value: string): string => {
+  const text = String(value || '').slice(0, 10)
+  const [year, month, day] = text.split('-').map(Number)
+
+  if (!year || !month || !day) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(year, month - 1, day))
+}
+
+type PaymentBucket = {
+  income: number | string
+  expense: number | string
+  balance: number | string
+  monthIncome: number | string
+  monthExpense: number | string
+}
+
+type DebtAlert = {
+  id: string
+  direction: 'payable' | 'receivable'
+  kind: 'money' | 'goods'
+  partyName: string
+  description: string
+  itemName: string
+  unit: string
+  dueDate: string
+  status: string
+  remainingAmount: number | string
+  remainingQty: number | string
+  overdue: boolean
+}
+
 type Data = {
   totalQty: number | string
   itemCount: number | string
   batchCount: number | string
   stockValue: number | string
+
   incomeMonth: number | string
   expenseMonth: number | string
   incomeAll: number | string
   expenseAll: number | string
+
   transactionsToday: number | string
   lowStock: number | string
   nearExpiry: number | string
+
   monthly: MonthlyPoint[]
+
   recent: {
     action: string
     module: string
@@ -93,6 +126,15 @@ type Data = {
     timestamp: string
     email: string
   }[]
+
+  paymentBuckets?: {
+    cash?: PaymentBucket
+    debit?: PaymentBucket
+  }
+
+  debtAlerts?: DebtAlert[]
+  debtOverdueCount?: number | string
+  debtDueSoonCount?: number | string
 }
 
 function Metric({
@@ -127,26 +169,131 @@ function Metric({
   )
 }
 
+function PaymentCard({
+  title,
+  icon: Icon,
+  bucket,
+  tone
+}: {
+  title: string
+  icon: ElementType
+  bucket?: PaymentBucket
+  tone: string
+}) {
+  const income = toNumber(bucket?.income)
+  const expense = toNumber(bucket?.expense)
+  const balance = toNumber(bucket?.balance)
+
+  return (
+    <article className={`dash-payment-card ${tone}`}>
+      <div className="dash-payment-heading">
+        <span className="dash-payment-icon">
+          <Icon size={19} />
+        </span>
+
+        <span>{title}</span>
+      </div>
+
+      <strong className="dash-payment-balance">
+        {money(balance)}
+      </strong>
+
+      <span className="dash-payment-caption">
+        Arus bersih tercatat
+      </span>
+
+      <div className="dash-payment-detail">
+        <span>
+          <ArrowDownRight size={14} />
+          Masuk
+          <b>{money(income)}</b>
+        </span>
+
+        <span>
+          <ArrowUpRight size={14} />
+          Keluar
+          <b>{money(expense)}</b>
+        </span>
+      </div>
+
+      <div className="dash-payment-month">
+        Bulan ini: {money(bucket?.monthIncome)} masuk
+        {' · '}
+        {money(bucket?.monthExpense)} keluar
+      </div>
+    </article>
+  )
+}
+
+function DebtRow({ debt }: { debt: DebtAlert }) {
+  const isPayable = debt.direction === 'payable'
+  const isMoney = debt.kind === 'money'
+
+  const amount = isMoney
+    ? money(debt.remainingAmount)
+    : `${toNumber(debt.remainingQty).toLocaleString('id-ID')} ${debt.unit || 'unit'}`
+
+  return (
+    <div className="dash-debt-row">
+      <div className={`dash-debt-direction ${isPayable ? 'payable' : 'receivable'}`}>
+        {isPayable
+          ? <TrendingDown size={17} />
+          : <TrendingUp size={17} />
+        }
+      </div>
+
+      <div className="dash-debt-main">
+        <div className="dash-debt-title-line">
+          <strong>{debt.partyName}</strong>
+
+          <span className={`dash-debt-status ${debt.overdue ? 'overdue' : 'soon'}`}>
+            {debt.overdue ? 'Terlambat' : 'Segera'}
+          </span>
+        </div>
+
+        <span className="dash-debt-description">
+          {isPayable ? 'Utang' : 'Piutang'}
+          {' · '}
+          {debt.description || (isMoney ? 'Transaksi uang' : debt.itemName)}
+        </span>
+
+        <span className="dash-debt-date">
+          <CalendarClock size={13} />
+          Jatuh tempo {formatDate(debt.dueDate)}
+        </span>
+      </div>
+
+      <div className="dash-debt-amount">
+        <strong>{amount}</strong>
+
+        <span>
+          {isMoney ? 'Sisa nominal' : debt.itemName || 'Sisa barang'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  /**
-   * Memuat ringkasan dashboard dari Google Sheets.
-   */
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setError('')
+      setLoading(true)
 
-      const r = await api<Data>('dashboard.summary', { token })
+      const response = await api<Data>('dashboard.summary', { token })
 
-      if (!r.data) {
+      if (!response.data) {
         throw new Error('Data dashboard tidak ditemukan.')
       }
 
-      setData(r.data)
+      setData(response.data)
     } catch (e) {
+      console.error('[Dashboard] Gagal memuat data:', e)
+
       setError(
         e instanceof Error
           ? e.message
@@ -155,37 +302,35 @@ export default function Dashboard({ token }: { token: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
 
   useEffect(() => {
-    load()
-  }, [token])
+    void load()
+  }, [load])
 
   const d = data
 
-  /**
-   * Mengamankan seluruh angka dari API.
-   */
   const totalQty = toNumber(d?.totalQty)
   const itemCount = toNumber(d?.itemCount)
   const batchCount = toNumber(d?.batchCount)
-
   const stockValue = toNumber(d?.stockValue)
 
   const incomeMonth = toNumber(d?.incomeMonth)
   const expenseMonth = toNumber(d?.expenseMonth)
 
-  const incomeAll = toNumber(d?.incomeAll)
-  const expenseAll = toNumber(d?.expenseAll)
-
-  const netBalance = incomeAll - expenseAll
+  const netBalance =
+    toNumber(d?.incomeAll) - toNumber(d?.expenseAll)
 
   const transactionsToday = toNumber(d?.transactionsToday)
   const lowStock = toNumber(d?.lowStock)
   const nearExpiry = toNumber(d?.nearExpiry)
 
+  const debtAlerts = d?.debtAlerts || []
+  const overdueCount = toNumber(d?.debtOverdueCount)
+  const dueSoonCount = toNumber(d?.debtDueSoonCount)
+
   return (
-    <div className="page-stack">
+    <div className="page-stack dashboard-page">
 
       {/* HEADER */}
       <div className="page-heading">
@@ -197,28 +342,30 @@ export default function Dashboard({ token }: { token: string }) {
           <h1>Dashboard</h1>
 
           <p>
-            Seluruh angka diperbarui dari transaksi dan persediaan tersimpan.
+            Pantau persediaan, keuangan, utang, dan piutang bisnis Anda.
           </p>
         </div>
 
         <button
           className="outline-btn"
-          onClick={load}
+          onClick={() => void load()}
           disabled={loading}
         >
-          <RefreshCw size={15} />
-          Refresh
+          <RefreshCw
+            size={15}
+            className={loading ? 'dash-spin' : ''}
+          />
+
+          {loading ? 'Memuat...' : 'Refresh'}
         </button>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div className="alert error">
           {error}
         </div>
       )}
 
-      {/* LOADING */}
       {loading && !d ? (
         <div className="panel empty-state">
           Memuat data dari Google Sheets...
@@ -226,9 +373,54 @@ export default function Dashboard({ token }: { token: string }) {
       ) : d ? (
         <>
 
-          {/* METRIC UTAMA */}
-          <div className="metric-grid">
+          {/* PEMBAYARAN */}
+          <section className="dash-section">
+            <div className="dash-section-heading">
+              <div>
+                <span className="dash-kicker">
+                  IKHTISAR KEUANGAN
+                </span>
 
+                <h2>Arus berdasarkan metode pembayaran</h2>
+
+                <p>
+                  Tunai dipisahkan dari Debit yang mencakup Kartu Debit,
+                  Transfer, dan QRIS.
+                </p>
+              </div>
+
+              <span className="dash-live">
+                <span />
+                Data transaksi
+              </span>
+            </div>
+
+            <div className="dash-payment-grid">
+              <PaymentCard
+                title="Tunai"
+                icon={Banknote}
+                bucket={d.paymentBuckets?.cash}
+                tone="cash"
+              />
+
+              <PaymentCard
+                title="Debit"
+                icon={CreditCard}
+                bucket={d.paymentBuckets?.debit}
+                tone="debit"
+              />
+            </div>
+
+            <div className="dash-account-note">
+              <AlertCircle size={15} />
+
+              Debit mencakup transaksi Kartu Debit, Transfer, dan QRIS.
+              Ambil Sendiri tidak dihitung sebagai pemasukan.
+            </div>
+          </section>
+
+          {/* METRIK UTAMA */}
+          <div className="metric-grid">
             <Metric
               title="Total Stok Tersedia"
               value={`${totalQty.toLocaleString('id-ID')} unit`}
@@ -240,7 +432,7 @@ export default function Dashboard({ token }: { token: string }) {
             <Metric
               title="Nilai Persediaan"
               value={money(stockValue)}
-              icon={Wallet}
+              icon={Package}
               tone="purple"
               sub="Berdasarkan harga beli batch"
             />
@@ -250,7 +442,7 @@ export default function Dashboard({ token }: { token: string }) {
               value={money(incomeMonth)}
               icon={TrendingUp}
               tone="green"
-              sub="Akumulasi transaksi bulan berjalan"
+              sub="Seluruh metode pembayaran"
             />
 
             <Metric
@@ -258,12 +450,11 @@ export default function Dashboard({ token }: { token: string }) {
               value={money(expenseMonth)}
               icon={TrendingDown}
               tone="orange"
-              sub="Akumulasi transaksi bulan berjalan"
+              sub="Seluruh metode pembayaran"
             />
-
           </div>
 
-          {/* METRIC SEKUNDER */}
+          {/* METRIK SEKUNDER */}
           <div className="metric-grid metric-grid-secondary">
 
             <div className="mini-metric">
@@ -272,8 +463,9 @@ export default function Dashboard({ token }: { token: string }) {
               </span>
 
               <div>
-                <small>Saldo Bersih Keseluruhan</small>
+                <small>Arus Bersih Keseluruhan</small>
                 <b>{money(netBalance)}</b>
+                <em>Pemasukan dikurangi pengeluaran tercatat</em>
               </div>
             </div>
 
@@ -284,11 +476,7 @@ export default function Dashboard({ token }: { token: string }) {
 
               <div>
                 <small>Batch Mendekati Expired</small>
-
-                <b>
-                  {nearExpiry.toLocaleString('id-ID')} batch
-                </b>
-
+                <b>{nearExpiry.toLocaleString('id-ID')} batch</b>
                 <em>Dalam 30 hari</em>
               </div>
             </div>
@@ -300,11 +488,7 @@ export default function Dashboard({ token }: { token: string }) {
 
               <div>
                 <small>Transaksi Hari Ini</small>
-
-                <b>
-                  {transactionsToday.toLocaleString('id-ID')} transaksi
-                </b>
-
+                <b>{transactionsToday.toLocaleString('id-ID')} transaksi</b>
                 <em>
                   {lowStock.toLocaleString('id-ID')} jenis stok mencapai batas minimum
                 </em>
@@ -313,22 +497,69 @@ export default function Dashboard({ token }: { token: string }) {
 
           </div>
 
-          {/* CHARTS */}
+          {/* UTANG DAN PIUTANG */}
+          <section className="dash-section">
+            <div className="dash-section-heading">
+              <div>
+                <span className="dash-kicker">
+                  KEWAJIBAN & TAGIHAN
+                </span>
+
+                <h2>Utang dan piutang terdekat</h2>
+
+                <p>
+                  Daftar utang dan piutang yang terlambat atau jatuh tempo
+                  dalam tujuh hari.
+                </p>
+              </div>
+
+              <div className="dash-debt-counters">
+                <span className={overdueCount > 0 ? 'has-overdue' : ''}>
+                  <AlertTriangle size={14} />
+                  {overdueCount} terlambat
+                </span>
+
+                <span>
+                  <Clock3 size={14} />
+                  {dueSoonCount} dalam 7 hari
+                </span>
+              </div>
+            </div>
+
+            <div className="dash-debt-panel">
+              {debtAlerts.length > 0 ? (
+                <div className="dash-debt-list">
+                  {debtAlerts.map(debt => (
+                    <DebtRow key={debt.id} debt={debt} />
+                  ))}
+                </div>
+              ) : (
+                <div className="dash-empty">
+                  <CheckCircle2 size={25} />
+
+                  <strong>
+                    Tidak ada utang/piutang yang mendekati jatuh tempo
+                  </strong>
+
+                  <span>
+                    Data aktif dengan tanggal jatuh tempo akan muncul di sini.
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* GRAFIK */}
           <div className="charts-grid">
 
             <section className="panel">
               <div className="panel-head">
                 <div>
                   <h3>Pergerakan Stok</h3>
-
-                  <p>
-                    Barang masuk dan keluar · 6 bulan terakhir
-                  </p>
+                  <p>Barang masuk dan keluar · 6 bulan terakhir</p>
                 </div>
 
-                <span className="period-pill">
-                  Live
-                </span>
+                <span className="period-pill">6 Bulan</span>
               </div>
 
               <StockChart data={d.monthly || []} />
@@ -338,15 +569,10 @@ export default function Dashboard({ token }: { token: string }) {
               <div className="panel-head">
                 <div>
                   <h3>Pemasukan & Pengeluaran</h3>
-
-                  <p>
-                    Arus keuangan · 6 bulan terakhir
-                  </p>
+                  <p>Arus keuangan · 6 bulan terakhir</p>
                 </div>
 
-                <span className="period-pill">
-                  Live
-                </span>
+                <span className="period-pill">6 Bulan</span>
               </div>
 
               <FinanceChart data={d.monthly || []} />
@@ -356,62 +582,51 @@ export default function Dashboard({ token }: { token: string }) {
 
           {/* AKTIVITAS TERBARU */}
           <section className="panel">
-
             <div className="panel-head">
               <div>
                 <h3>Aktivitas Terbaru</h3>
-
-                <p>
-                  Diambil dari log aktivitas Google Sheets.
-                </p>
+                <p>Diambil dari log aktivitas Google Sheets.</p>
               </div>
             </div>
 
-            {d.recent?.length ? (
+            {d.recent?.length > 0 ? (
               <div className="activity-list">
-
-                {d.recent.map((x, i) => (
+                {d.recent.map((item, index) => (
                   <div
                     className="activity-row"
-                    key={i}
+                    key={`${item.timestamp}-${index}`}
                   >
                     <span className="activity-dot blue-dot" />
 
                     <div>
-                      <b>{x.description}</b>
+                      <b>{item.description || item.action}</b>
 
                       <small>
-                        {x.module} · {x.email}
+                        {item.module} · {item.email}
                       </small>
                     </div>
 
                     <time>
-                      {String(x.timestamp || '')
+                      {String(item.timestamp || '')
                         .replace('T', ' ')
                         .slice(0, 16)}
                     </time>
                   </div>
                 ))}
-
               </div>
             ) : (
               <div className="empty-state">
                 Belum ada aktivitas tercatat.
               </div>
             )}
-
           </section>
 
         </>
-      ) : null}
-
-      {/* EMPTY STATE */}
-      {!loading && !d && !error && (
+      ) : (
         <div className="panel empty-state">
-          Belum ada data untuk ditampilkan.
+          Data dashboard belum tersedia.
         </div>
       )}
-
     </div>
   )
 }
